@@ -1,0 +1,8 @@
+[package]
+name = "bee-tangle"
+version = "0.1.0"
+authors = ["IOTA Foundation"]
+edition = "2018"
+
+[dependencies]
+bee-transaction = { path = "../bee-transaction" }
