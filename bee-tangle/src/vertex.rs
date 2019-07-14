@@ -114,6 +114,7 @@ impl From<SharedTransaction> for SharedVertex {
     }
 }
 
+#[cfg(test)]
 mod test {
 
     use super::*;
@@ -207,8 +208,6 @@ mod test {
             .into()
     }
 
-
-    extern crate rand;
     use rand::Rng;
 
     fn gen_random_hash() -> String {

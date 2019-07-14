@@ -1,7 +1,8 @@
 pub mod vertex;
 pub mod store;
 
-pub use crate::vertex::SharedVertex;
+pub use crate::vertex::*;
+pub use crate::store::*;
 
 impl SharedVertex {
     pub fn print(&self) {
