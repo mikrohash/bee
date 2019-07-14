@@ -1,10 +1,21 @@
 use bee_transaction::*;
 
+/// A sharable smart pointer to a transaction object.
+/// Required since every transaction does only exist once.
+/// Immutable because transactions are immutable.
 pub struct SharedTransaction {
     pointer : std::rc::Rc<Transaction>
 }
 
 impl From<Transaction> for SharedTransaction {
+    /// Converts a transaction into its sharable smart pointer.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().build();
+    /// let stx : SharedTransaction = tx.into();
+    /// ```
     fn from(transaction : Transaction) -> Self {
         Self {
             pointer : std::rc::Rc::new(transaction)
@@ -13,6 +24,15 @@ impl From<Transaction> for SharedTransaction {
 }
 
 impl std::clone::Clone for SharedTransaction {
+    /// Creates a new reference to the same transaction.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().build();
+    /// let stx1 : SharedTransaction = tx.into();
+    /// let stx2 = stx1.clone();
+    /// ```
     fn clone(&self) -> Self {
         Self {
             pointer: self.pointer.clone()
@@ -22,12 +42,21 @@ impl std::clone::Clone for SharedTransaction {
 
 impl std::ops::Deref for SharedTransaction {
     type Target = Transaction;
+    /// Derefences to the underlying transaction object.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().address("ABC").build();
+    /// let stx : SharedTransaction = tx.into();
+    /// assert_eq!("ABC", stx.address);
+    /// ```
     fn deref(&self) -> &Transaction {
         self.pointer.deref()
     }
 }
 
-// the actual vertex of which at most one instance exists per transaction in a VertexStore
+/// The actual vertex of which at most one instance exists per transaction in a VertexStore.
 struct Vertex {
     transaction : SharedTransaction,
     branch : Option<SharedVertex>,
@@ -36,6 +65,7 @@ struct Vertex {
 }
 
 impl Vertex {
+    /// Creates a new vertex for a given transaction without any links to other vertices.
     fn new(transaction : SharedTransaction) -> Self {
         Vertex {
             transaction,
@@ -46,45 +76,71 @@ impl Vertex {
     }
 }
 
-// a multi-access, mutable smart pointer to a vertex
-// required so vertices can reference each other bidirectionally
+/// A multi-access, mutable smart pointer to a vertex.
+/// Being sharable is required so vertices can reference each other bidirectionally.
+/// Mutability allows vertices to update their links.
 pub struct SharedVertex {
     pointer : std::rc::Rc<std::cell::RefCell<Vertex>>
 }
 
 impl SharedVertex {
-    fn borrow_mut(&self) -> std::cell::RefMut<Vertex> {
-        self.pointer.borrow_mut()
-    }
 
+    /// Links the vertex with its branch bidirectionally.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let branch = "ABC";
+    /// let tx_branch = TransactionBuilder::new().address(branch).build();
+    /// let tx_child = TransactionBuilder::new().branch(branch).build();
+    /// let vertex_branch = SharedVertex::from(tx_branch);
+    /// let vertex_child = SharedVertex::from(tx_child);
+    /// vertex_child.set_branch(vertex_branch.clone());
+    /// ```
+    /// # Panics
+    /// Panics if the hash of the transaction of the `branch` vertex argument does not equal the
+    /// branch hash of the transaction of this vertex.
     pub fn set_branch(&self, branch : SharedVertex) {
         assert_eq!(branch.get_transaction().address, self.get_transaction().branch);
-        branch.append_child(self.clone());
+        branch.borrow_mut().children.push(self.clone());
         self.borrow_mut().branch = Option::Some(branch);
     }
 
+    /// Links the vertex with its trunk bidirectionally.
+    /// # Example
+    /// See example for [`set_branch()`](#method.set_branch).
+    /// # Panics
+    /// Panics if the hash of the transaction of the `trunk` vertex argument does not equal the
+    /// trunk hash of the transaction of this vertex.
     pub fn set_trunk(&self, trunk : SharedVertex) {
         assert_eq!(trunk.get_transaction().address, self.get_transaction().trunk);
-        trunk.append_child(self.clone());
+        trunk.borrow_mut().children.push(self.clone());
         self.borrow_mut().trunk = Option::Some(trunk);
     }
 
-    fn append_child(&self, child : SharedVertex) {
-        self.borrow_mut().children.push(child);
-    }
-
+    /// Returns the vector containing links to all vertices whose transactions directly reference
+    /// the transaction of this vertex.
     pub fn get_children(&self) -> &Vec<SharedVertex> {
         &self.borrow().children
     }
 
+    /// Returns the inner transaction instance as a reference to the `SharedTransaction` smart pointer.
     pub fn get_transaction(&self) -> &SharedTransaction {
         &self.borrow().transaction
     }
 
+    // private: only for internal use
+    #[inline]
+    fn borrow_mut(&self) -> std::cell::RefMut<Vertex> {
+        self.pointer.borrow_mut()
+    }
+
+    /// Returns an `Option` of the smart pointer of the branch vertex if linked.
     pub fn get_branch(&self) -> &Option<SharedVertex> {
         &self.borrow().branch
     }
 
+    /// Returns an `Option` of the smart pointer of the trunk vertex if linked.
     pub fn get_trunk(&self) -> &Option<SharedVertex> {
         &self.borrow().trunk
     }
@@ -111,6 +167,12 @@ impl From<SharedTransaction> for SharedVertex {
         Self {
             pointer : std::rc::Rc::new(std::cell::RefCell::new(Vertex::new(transaction)))
         }
+    }
+}
+
+impl From<Transaction> for SharedVertex {
+    fn from(transaction : Transaction) -> Self {
+        SharedVertex::from(SharedTransaction::from(transaction))
     }
 }
 
