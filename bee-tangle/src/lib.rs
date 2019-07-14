@@ -1,11 +1,12 @@
 pub mod vertex;
+pub mod store;
 
-pub use crate::vertex::VertexRef;
+pub use crate::vertex::SharedVertex;
 
-impl VertexRef {
+impl SharedVertex {
     pub fn print(&self) {
 
-        fn stringify_opt_vertex_ref(vertex_ref : &Option<VertexRef>) -> String {
+        fn stringify_opt_vertex_ref(vertex_ref : &Option<SharedVertex>) -> String {
             match &vertex_ref {
                 Some(vertex_ref) => vertex_ref.get_transaction().address.clone(),
                 None => "---".to_string()

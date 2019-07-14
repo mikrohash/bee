@@ -1,16 +1,43 @@
 use bee_transaction::*;
 
-// the actual vertex of which at most one instance exists per transaction in a VertexStore
-struct VertexData {
-    transaction : Transaction,
-    branch : Option<VertexRef>,
-    trunk : Option<VertexRef>,
-    children : Vec<VertexRef>
+pub struct SharedTransaction {
+    pointer : std::rc::Rc<Transaction>
 }
 
-impl VertexData {
-    fn new(transaction : Transaction) -> Self {
-        VertexData {
+impl From<Transaction> for SharedTransaction {
+    fn from(transaction : Transaction) -> Self {
+        Self {
+            pointer : std::rc::Rc::new(transaction)
+        }
+    }
+}
+
+impl std::clone::Clone for SharedTransaction {
+    fn clone(&self) -> Self {
+        Self {
+            pointer: self.pointer.clone()
+        }
+    }
+}
+
+impl std::ops::Deref for SharedTransaction {
+    type Target = Transaction;
+    fn deref(&self) -> &Transaction {
+        self.pointer.deref()
+    }
+}
+
+// the actual vertex of which at most one instance exists per transaction in a VertexStore
+struct Vertex {
+    transaction : SharedTransaction,
+    branch : Option<SharedVertex>,
+    trunk : Option<SharedVertex>,
+    children : Vec<SharedVertex>
+}
+
+impl Vertex {
+    fn new(transaction : SharedTransaction) -> Self {
+        Vertex {
             transaction,
             branch : Option::None,
             trunk : Option::None,
@@ -21,85 +48,69 @@ impl VertexData {
 
 // a multi-access, mutable smart pointer to a vertex
 // required so vertices can reference each other bidirectionally
-pub struct VertexRef {
-    pointer : std::rc::Rc<std::cell::RefCell<VertexData>>
+pub struct SharedVertex {
+    pointer : std::rc::Rc<std::cell::RefCell<Vertex>>
 }
 
-impl VertexRef {
-    fn borrow_mut(&self) -> std::cell::RefMut<VertexData> {
+impl SharedVertex {
+    fn borrow_mut(&self) -> std::cell::RefMut<Vertex> {
         self.pointer.borrow_mut()
     }
 
-    pub fn set_branch(&self, branch : VertexRef) {
+    pub fn set_branch(&self, branch : SharedVertex) {
         assert_eq!(branch.get_transaction().address, self.get_transaction().branch);
         branch.append_child(self.clone());
         self.borrow_mut().branch = Option::Some(branch);
     }
 
-    pub fn set_trunk(&self, trunk : VertexRef) {
+    pub fn set_trunk(&self, trunk : SharedVertex) {
         assert_eq!(trunk.get_transaction().address, self.get_transaction().trunk);
         trunk.append_child(self.clone());
         self.borrow_mut().trunk = Option::Some(trunk);
     }
 
-    fn append_child(&self, child : VertexRef) {
+    fn append_child(&self, child : SharedVertex) {
         self.borrow_mut().children.push(child);
     }
 
-    pub fn get_children(&self) -> &Vec<VertexRef> {
+    pub fn get_children(&self) -> &Vec<SharedVertex> {
         &self.borrow().children
     }
 
-    pub fn get_transaction(&self) -> &Transaction {
+    pub fn get_transaction(&self) -> &SharedTransaction {
         &self.borrow().transaction
     }
 
-    pub fn get_branch(&self) -> &Option<VertexRef> {
+    pub fn get_branch(&self) -> &Option<SharedVertex> {
         &self.borrow().branch
     }
 
-    pub fn get_trunk(&self) -> &Option<VertexRef> {
+    pub fn get_trunk(&self) -> &Option<SharedVertex> {
         &self.borrow().trunk
     }
 
     // private because VertexData is private; only used internally for convenience
     // therefore not implementing std::borrow::Borrow trait.
-    fn borrow(&self) -> &VertexData {
+    fn borrow(&self) -> &Vertex {
         unsafe {
             self.pointer.as_ptr().as_ref().unwrap()
         }
     }
 }
 
-impl std::clone::Clone for VertexRef {
-    fn clone(&self) -> VertexRef {
-        VertexRef {
+impl std::clone::Clone for SharedVertex {
+    fn clone(&self) -> Self {
+        Self {
             pointer: self.pointer.clone()
         }
     }
 }
 
-impl From<Transaction> for VertexRef {
-    fn from(transaction : Transaction) -> Self {
-        VertexRef{
-            pointer : std::rc::Rc::new(std::cell::RefCell::new(VertexData::new(transaction)))
+impl From<SharedTransaction> for SharedVertex {
+    fn from(transaction : SharedTransaction) -> Self {
+        Self {
+            pointer : std::rc::Rc::new(std::cell::RefCell::new(Vertex::new(transaction)))
         }
-    }
-}
-
-pub struct VertexStore {
-    vertices_by_hash : std::collections::HashMap<String, VertexRef>
-}
-
-impl VertexStore {
-    pub fn new() -> Self {
-        VertexStore {
-            vertices_by_hash : std::collections::HashMap::new()
-        }
-    }
-
-    pub fn get_vertex(&self, hash : &String) -> Option<&VertexRef> {
-        self.vertices_by_hash.get(hash)
     }
 }
 
@@ -114,9 +125,9 @@ mod test {
         let tx2 = create_tx("", "");
         let tx3 = create_tx(tx1.address.as_str(), tx2.address.as_str());
 
-        let vertex1 : VertexRef = tx1.into();
-        let vertex2 : VertexRef = tx2.into();
-        let vertex3 : VertexRef = tx3.into();
+        let vertex1 : SharedVertex = tx1.into();
+        let vertex2 : SharedVertex = tx2.into();
+        let vertex3 : SharedVertex = tx3.into();
 
         vertex3.set_branch(vertex1.clone());
         vertex3.set_trunk(vertex2.clone());
@@ -141,13 +152,13 @@ mod test {
         let tx1 = create_tx("", "");
         let tx2 = create_tx(tx1.address.as_str(), "");
 
-        let vertex1 : VertexRef = tx1.into();
-        let vertex2 : VertexRef = tx2.into();
+        let vertex1 : SharedVertex = tx1.into();
+        let vertex2 : SharedVertex = tx2.into();
 
         vertex2.set_trunk(vertex1.clone());
     }
 
-    fn assert_branch(vertex : &VertexRef, branch : Option<&VertexRef>) {
+    fn assert_branch(vertex : &SharedVertex, branch : Option<&SharedVertex>) {
         if branch.is_none() {
             assert_eq!(true, vertex.get_branch().is_none())
         } else if let Option::Some(inner) = vertex.get_branch() {
@@ -158,7 +169,7 @@ mod test {
         }
     }
 
-    fn assert_trunk(vertex : &VertexRef, trunk : Option<&VertexRef>) {
+    fn assert_trunk(vertex : &SharedVertex, trunk : Option<&SharedVertex>) {
         if trunk.is_none() {
             assert_eq!(true, vertex.get_trunk().is_none())
         } else if let Option::Some(inner) = vertex.get_trunk() {
@@ -169,14 +180,14 @@ mod test {
         }
     }
 
-    fn assert_children(vertex : &VertexRef, children : &[&VertexRef]) {
+    fn assert_children(vertex : &SharedVertex, children : &[&SharedVertex]) {
         assert_eq!(vertex.get_children().len(), children.len(), "unexpected amount of children");
         for expected_child in children {
             assert_child(vertex, &expected_child);
         }
     }
 
-    fn assert_child(vertex : &VertexRef, child : &VertexRef) {
+    fn assert_child(vertex : &SharedVertex, child : &SharedVertex) {
         for some_child in vertex.get_children() {
             if some_child.get_transaction().address == child.get_transaction().address {
                 return;
@@ -185,7 +196,7 @@ mod test {
         panic!("child not found");
     }
 
-    fn create_tx(branch : &str, trunk : &str) -> Transaction {
+    fn create_tx(branch : &str, trunk : &str) -> SharedTransaction {
         let tx_builder = TransactionBuilder::new();
         let random_hash = gen_random_hash();
         println!("HASH: {}", random_hash);
@@ -193,6 +204,7 @@ mod test {
             .branch(branch)
             .trunk(trunk)
             .build()
+            .into()
     }
 
 
