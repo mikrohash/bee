@@ -4,6 +4,7 @@ members = [
 	"bee-cli",
 	"bee-core",
 	"bee-display",
+	"bee-tangle",
 	"bee-transaction",
 	"bee-trim",
 	"bee-trinary",

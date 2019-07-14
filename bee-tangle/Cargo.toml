@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 bee-transaction = { path = "../bee-transaction" }
+rand = "0.7.0"
