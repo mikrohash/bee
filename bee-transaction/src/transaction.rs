@@ -281,6 +281,15 @@ impl TransactionBuilder {
         self
     }
 
+    /// Sets a branch hash.
+    pub fn address(mut self, address: &str) -> Self {
+        assert!(util::is_tryte_str(address));
+        assert!(address.len() <= ADDRESS.3);
+
+        self.transaction.address = address.to_string();
+        self
+    }
+
     /// Sets a ASCII message and stores it in the data field.
     pub fn message(mut self, message: &str) -> Self {
         assert!(message.len() <= SIGNATURE_FRAGMENTS.3);
