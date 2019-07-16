@@ -1,4 +1,5 @@
 use crate::vertex::*;
+use bee_transaction::SharedTransaction;
 
 /// Provides access to all transactions known by the bee node. New transactions will be added and
 /// old transactions removed when pruned.

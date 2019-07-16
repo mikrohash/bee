@@ -243,6 +243,64 @@ impl Default for Transaction {
     }
 }
 
+/// A sharable smart pointer to a transaction object.
+/// Required since every transaction does only exist once.
+/// Immutable because transactions are immutable.
+#[derive(Debug)]
+pub struct SharedTransaction {
+    pointer : std::rc::Rc<Transaction>
+}
+
+impl From<Transaction> for SharedTransaction {
+    /// Converts a transaction into its sharable smart pointer.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().build();
+    /// let stx : SharedTransaction = tx.into();
+    /// ```
+    fn from(transaction : Transaction) -> Self {
+        Self {
+            pointer : std::rc::Rc::new(transaction)
+        }
+    }
+}
+
+impl Clone for SharedTransaction {
+    /// Creates a new reference to the same transaction.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().build();
+    /// let stx1 : SharedTransaction = tx.into();
+    /// let stx2 = stx1.clone();
+    /// ```
+    fn clone(&self) -> Self {
+        Self {
+            pointer: self.pointer.clone()
+        }
+    }
+}
+
+impl std::ops::Deref for SharedTransaction {
+    type Target = Transaction;
+    /// Derefences to the underlying transaction object.
+    /// # Example
+    /// ```
+    /// # use bee_transaction::TransactionBuilder;
+    /// # use bee_tangle::vertex::*;
+    /// let tx = TransactionBuilder::new().address("ABC").build();
+    /// let stx : SharedTransaction = tx.into();
+    /// assert_eq!("ABC", stx.address);
+    /// ```
+    fn deref(&self) -> &Transaction {
+        self.pointer.deref()
+    }
+}
+
+
 /// A transaction builder.
 #[derive(Debug)]
 pub struct TransactionBuilder {
