@@ -30,3 +30,4 @@ pub mod transaction;
 pub use crate::transaction::Transaction;
 pub use crate::transaction::SharedTransaction;
 pub use crate::transaction::TransactionBuilder;
+pub use crate::transaction::TransactionBytes;
