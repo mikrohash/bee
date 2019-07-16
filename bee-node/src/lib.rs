@@ -1,5 +1,5 @@
-#![deny(bad_style, missing_docs, trivial_casts, trivial_numeric_casts, unsafe_code, unstable_features, )]
-#![cfg_attr(not(debug_assertions), deny(warnings))]
+//#![deny(bad_style, missing_docs, trivial_casts, trivial_numeric_casts, unsafe_code, unstable_features, )]
+//#![cfg_attr(not(debug_assertions), deny(warnings))]
 
 //! This crate provides the sender/receiver logic. It abstracts from the transmission protocol and
 //! bridges together the pure data transmission with the internal state of bee. For more information,

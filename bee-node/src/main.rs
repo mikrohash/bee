@@ -1,4 +1,4 @@
-
+pub mod eee;
 
 mod entities {
 
@@ -10,14 +10,14 @@ mod entities {
 
     impl U8ToStringEntity {
         pub fn new(session : &eee::EEESession) -> Self {
-            let output_environment = eee::SUPERVISOR_STRING.get_environment(&session, "CONSOLE".to_string());
+            let output_environment = eee::SUPERVISOR_STRING.get_environment(&session, "CONSOLE");
             U8ToStringEntity { output_environment }
         }
 
         pub fn spin_up(session : &eee::EEESession) {
-            let input_environment = eee::SUPERVISOR_U8.get_environment(&session, "STATS".to_string());
+            let input_environment = eee::SUPERVISOR_U8.get_environment(&session, "STATS");
             let entity = Self::new(session);
-            input_environment.add_entity(eee::EntityBox::new(Box::new(entity)));
+            input_environment.add_entity(Box::new(entity));
         }
 
         fn convert(&self, &effect : &u8) -> String {
@@ -32,7 +32,7 @@ mod entities {
     }
 
     impl eee::Entity<u8> for U8ToStringEntity {
-        fn on_effect(&self, &effect : &u8) {
+        fn on_effect(&mut self, &effect : &u8) {
             let result = self.convert(&effect);
             self.output_environment.send_effect( result);
         }
@@ -41,15 +41,15 @@ mod entities {
     pub struct ConsoleEntity {}
 
     impl eee::Entity<String> for ConsoleEntity {
-        fn on_effect(&self, effect : &String) {
+        fn on_effect(&mut self, effect : &String) {
             println!("> {}", effect)
         }
     }
 
     impl ConsoleEntity {
         pub fn spin_up(session : &eee::EEESession) {
-            let input_environment = eee::SUPERVISOR_STRING.get_environment(&session, "CONSOLE".to_string());
-            input_environment.add_entity(eee::EntityBox::new(Box::new(ConsoleEntity{})));
+            let input_environment = eee::SUPERVISOR_STRING.get_environment(&session, "CONSOLE");
+            input_environment.add_entity(Box::new(ConsoleEntity{}));
         }
     }
 }
@@ -64,7 +64,7 @@ fn main() {
     entities::ConsoleEntity::spin_up(&session);
 
     // trigger entities by sending effects
-    let first_env = eee::SUPERVISOR_U8.get_environment(&session, "STATS".to_string());
+    let first_env = eee::SUPERVISOR_U8.get_environment(&session, "STATS");
 
     first_env.send_effect(1);
     first_env.send_effect(2);

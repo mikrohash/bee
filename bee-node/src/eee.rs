@@ -13,34 +13,15 @@ lazy_static! {
 
 /// Can listen to effects.
 pub trait Entity<T> {
-    fn on_effect(&self, effect : &T);
-}
-
-pub struct EntityBox<T> {
-    inner : Box<Entity<T>>
-}
-
-impl<T> EntityBox<T> {
-    /// Wraps an Entity into a new EntityBox.
-    pub fn new(entity : Box<Entity<T>>) -> Self {
-        EntityBox {
-            inner : entity
-        }
-    }
-}
-
-impl<T> EntityBox<T> {
-    fn on_effect(&self, effect : &T) {
-        self.inner.on_effect(effect);
-    }
+    fn on_effect(&mut self, effect : &T);
 }
 
 #[allow(unsafe_code)]
-unsafe impl<T> Send for EntityBox<T> {}
+unsafe impl<T> Send for Environment<T> {}
 
 /// Responsible for effect dispatching
 pub struct Environment<T> {
-    entities : Vec<EntityBox<T>>
+    entities : Vec<Box<Entity<T>>>
 }
 
 impl<T> Environment<T> {
@@ -51,12 +32,12 @@ impl<T> Environment<T> {
         }
     }
 
-    pub fn add_entity(&mut self, entity : EntityBox<T>) {
+    pub fn add_entity(&mut self, entity : Box<Entity<T>>) {
         self.entities.push(entity);
     }
 
-    pub fn send_effect(&self, effect : T) {
-        for entity in &self.entities {
+    pub fn send_effect(&mut self, effect : T) {
+        for entity in &mut self.entities {
             entity.on_effect(&effect);
         }
     }
@@ -75,7 +56,7 @@ impl<T> SharedEnvironment<T> {
         }
     }
 
-    pub fn add_entity(&self, entity : EntityBox<T>) {
+    pub fn add_entity(&self, entity : Box<Entity<T>>) {
         self.pointer.lock().unwrap().add_entity(entity);
     }
 
