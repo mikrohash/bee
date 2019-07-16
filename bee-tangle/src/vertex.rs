@@ -91,6 +91,7 @@ impl SharedVertex {
 
     // private because VertexData is private; only used internally for convenience
     // therefore not implementing std::borrow::Borrow trait.
+    #[allow(unsafe_code)]
     fn borrow(&self) -> &Vertex {
         unsafe {
             self.pointer.as_ptr().as_ref().unwrap()

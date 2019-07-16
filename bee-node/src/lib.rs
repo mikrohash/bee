@@ -1,3 +1,6 @@
+#![deny(bad_style, missing_docs, trivial_casts, trivial_numeric_casts, unsafe_code, unstable_features, )]
+#![cfg_attr(not(debug_assertions), deny(warnings))]
+
 use bee_transaction::SharedTransaction;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -108,6 +111,7 @@ pub fn create_sender_and_receiver() -> (Sender, Receiver) {
     (sender, receiver)
 }
 
+#[cfg(test)]
 mod test {
 
     use super::*;
