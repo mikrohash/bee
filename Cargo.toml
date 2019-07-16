@@ -9,6 +9,7 @@ members = [
 	"bee-trim",
 	"bee-trinary",
 	"bee-troika",
+	"bee-node"
 ]
 
 [profile.dev]

@@ -1,10 +1,4 @@
-//pub mod vertex;
-//pub mod store;
-
-//pub use crate::vertex::*;
-//pub use crate::store::*;
-
-use bee_tangle::SharedTransaction;
+use bee_transaction::SharedTransaction;
 use std::sync::Arc;
 use std::sync::Mutex;
 use bitvec::BitVec;
@@ -106,6 +100,14 @@ impl Sender {
     }
 }
 
+/// Allows the creation of a Sender and Receiver pair that can be used for the same bee node.
+pub fn create_sender_and_receiver() -> (Sender, Receiver) {
+    let sharable_gossip_tracker= Arc::new(Mutex::new(GossipTracker::new()));
+    let sender = Sender::new(sharable_gossip_tracker.clone());
+    let receiver = Receiver::new(sharable_gossip_tracker.clone());
+    (sender, receiver)
+}
+
 mod test {
 
     use super::*;
@@ -116,9 +118,9 @@ mod test {
 
         let hash = "ABC";
         let stx : SharedTransaction = TransactionBuilder::new().address(&hash).build().into();
-        let sharable_gossip_tracker= Arc::new(Mutex::new(GossipTracker::new()));
-        let mut sender = Sender::new(sharable_gossip_tracker.clone());
-        let mut receiver = Receiver::new(sharable_gossip_tracker.clone());
+
+        let (mut sender, mut receiver) = create_sender_and_receiver();
+        let sharable_gossip_tracker = &sender.sharable_gossip_tracker.clone();
 
         // transaction not yet received from or forwarded to any neighbor
         assert_transaction_track(&sharable_gossip_tracker, hash, &|_| {false});

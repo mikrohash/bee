@@ -1,0 +1,9 @@
+[package]
+name = "bee-node"
+version = "0.1.0"
+authors = ["IOTA Foundation"]
+edition = "2018"
+
+[dependencies]
+bee-transaction = { path = "../bee-transaction" }
+bitvec = "0.5.0"
