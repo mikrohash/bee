@@ -1,0 +1,8 @@
+[package]
+name = "bee-connect"
+version = "0.1.0"
+authors = ["Lukas Tassanyi <lukas.tassanyi@iota.org>"]
+edition = "2018"
+
+[dependencies]
+tokio = "0.1.20"
