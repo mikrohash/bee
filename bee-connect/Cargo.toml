@@ -5,4 +5,4 @@ authors = ["Lukas Tassanyi <lukas.tassanyi@iota.org>"]
 edition = "2018"
 
 [dependencies]
-tokio = "0.1.20"
+async-std = "0.99.4"

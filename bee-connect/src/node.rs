@@ -3,7 +3,6 @@ use crate::server_socket::ServerSocket;
 use crate::client_socket::ClientSocket;
 use crate::node;
 use crate::message;
-use std::time::Duration;
 
 const NOT_CONNECTED : &str = "Node is not connected to this peer.";
 const ALREADY_CONNECTED : &str  = "Node is already connected to this peer.";
@@ -25,7 +24,6 @@ const NO_TCP : &str  = "NodeID must be set to 'tcp' protocol.";
 pub struct Node {
     server_socket : ServerSocket,
     client_sockets : Vec<ClientSocket>,
-    timeout : Option<Duration>
 }
 
 impl Node {
@@ -35,8 +33,7 @@ impl Node {
         id.assert_protocol("tcp");
         let server_socket = ServerSocket::new(id);
         let client_sockets = Vec::new();
-        let timeout = Some(Duration::new(3, 0));
-        Node { server_socket, client_sockets, timeout }
+        Node { server_socket, client_sockets }
     }
 
     /// Connects this node to the node addresses by the `peer_id`.
@@ -70,7 +67,6 @@ impl Node {
 
     fn add_peer(&mut self, peer_id : &node::NodeID) {
         let client_socket = ClientSocket::new(&peer_id).unwrap();
-        client_socket.set_timeout(self.timeout);
         self.client_sockets.push(client_socket);
     }
 
@@ -138,13 +134,6 @@ impl Node {
         self.server_socket.get_id()
     }
 
-    /// Sets the tolerated timeout for sending messages to peers.
-    pub fn set_timeout(&mut self, timeout : Option<Duration>) {
-        for client_socket in &self.client_sockets {
-            client_socket.set_timeout(timeout.clone());
-        }
-    }
-
     /// Sends a message to a connected peer.
     ///
     /// # Errors
@@ -206,12 +195,11 @@ impl NodeID {
 mod test {
 
     use super::*;
-    use std::time::Duration;
 
     #[test]
     fn test_node_repeated_peering() {
         let mut node = create_tcp_localhost_node(1337);
-        let mut peer = create_tcp_localhost_node(1338);
+        let peer = create_tcp_localhost_node(1338);
         let peer_id = peer.get_id();
 
         assert_eq!(node.get_peers(), vec![]);
@@ -226,7 +214,7 @@ mod test {
     #[test]
     fn test_node_un_peer() {
         let mut node = create_tcp_localhost_node(1337);
-        let mut peer = create_tcp_localhost_node(1338);
+        let peer = create_tcp_localhost_node(1338);
         let peer_id = peer.get_id();
 
         assert_eq!(node.get_peers(), vec![]);
@@ -256,20 +244,20 @@ mod test {
         node.connect_to_peer(peer_id).unwrap();
 
         let peer_handle = std::thread::spawn(move || {
-            &peer.server_socket.process_next_request();
+            &peer.server_socket.listen_to_requests();
         });
 
         let msg : message::Message = node.send_message_to_peer(peer_id, &message::DISCONNECT_REQUEST).unwrap();
         peer_handle.join().unwrap();
     }
 
+    #[ignore] // TODO implement timeout
     #[test]
     fn test_node_send_to_peer_timeout() {
         let mut node = create_tcp_localhost_node(1337);
-        let mut peer = create_tcp_localhost_node(1338);
+        let peer = create_tcp_localhost_node(1338);
         let peer_id = &peer.get_id().clone();
         node.connect_to_peer(peer_id).unwrap();
-        node.set_timeout(Some(Duration::new(0, 100000000)));
         node.send_message_to_peer(peer_id, &message::DISCONNECT_REQUEST).unwrap_err();
     }
 

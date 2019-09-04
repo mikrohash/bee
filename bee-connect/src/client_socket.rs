@@ -1,10 +1,11 @@
 use std::string::ToString;
-use std::net::TcpStream;
+use async_std::net::TcpStream;
 use crate::message;
 use crate::socket_utils;
 use crate::node;
-use std::time::Duration;
-use std::io::Write;
+use async_std::task;
+use core::borrow::BorrowMut;
+use async_std::io::Write;
 
 pub struct ClientSocket {
     stream : TcpStream,
@@ -14,7 +15,12 @@ pub struct ClientSocket {
 impl ClientSocket {
     pub fn new(server_id : &node::NodeID) -> Result<Self, String> {
         server_id.assert_protocol("tcp");
-        match TcpStream::connect(&server_id.address) {
+
+        let stream_result = task::block_on(async {
+            TcpStream::connect(&server_id.address).await
+        });
+
+        match stream_result {
             Ok(stream) => {
                 Ok(ClientSocket{stream, server_id : server_id.clone()})
             },
@@ -25,17 +31,16 @@ impl ClientSocket {
     }
 
     pub fn send_message(&mut self, message : &message::Message) -> Result<message::Message, String> {
-        self.stream.write_all(message).unwrap();
-        self.stream.flush().unwrap();
-        socket_utils::read_message(&mut self.stream)
+        task::block_on(async {
+            let stream = self.stream.borrow_mut();
+            stream.write_all(message).await.unwrap();
+            stream.flush().await.unwrap();
+            socket_utils::read_message(&mut self.stream)
+        })
     }
 
     pub fn get_server_id(&self) -> &node::NodeID {
         &self.server_id
-    }
-
-    pub fn set_timeout(&self, timeout : Option<Duration>) {
-        self.stream.set_read_timeout(timeout).unwrap();
     }
 }
 

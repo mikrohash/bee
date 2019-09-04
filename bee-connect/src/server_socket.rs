@@ -1,9 +1,10 @@
-use std::net::{TcpListener, TcpStream};
-use core::borrow::BorrowMut;
 use crate::message;
 use crate::socket_utils;
 use crate::node;
-use std::io::Write;
+
+use async_std::net::{TcpListener, TcpStream};
+use async_std::task;
+use async_std::prelude::*;
 
 pub struct ServerSocket {
     listener : TcpListener,
@@ -14,23 +15,34 @@ impl ServerSocket {
 
     pub fn new(id : &node::NodeID) -> Self {
         id.assert_protocol("tcp");
-        let listener = TcpListener::bind(&id.address).unwrap();
+        let listener = async_std::task::block_on(
+            TcpListener::bind(&id.address)
+        ).unwrap();
         ServerSocket { listener, id : id.clone() }
     }
 
-    pub fn process_next_request(&mut self) {
-        match (&self.listener).incoming().borrow_mut().next() {
-            Some(Ok(stream)) => { self.process_ok_stream(stream);  },
-            Some(Err(e)) => { panic!("[S] Error: {}", e); },
-            None => { /* no open request */ }
-        }
+    pub fn listen_to_requests(&mut self) {
+
+        task::block_on(async {
+            let mut incoming = self.listener.incoming();
+            let polled = incoming.next().await;
+
+            match polled {
+                Some(Ok(stream)) => { self.process_stream(stream);  },
+                Some(Err(e)) => { panic!("[S] Error: {}", e); },
+                None => { /* no open request */ }
+            }
+        });
     }
 
-    fn process_ok_stream(&self, mut stream : TcpStream) {
+    fn process_stream(&self, mut stream : TcpStream) {
         let request = socket_utils::read_message(&mut stream).unwrap();
         let response = self.calculate_response_for_request(&request);
-        stream.write_all(&response).unwrap();
-        stream.flush().unwrap();
+
+        task::block_on(async {
+            stream.write_all(&response).await.unwrap();
+            stream.flush().await.unwrap();
+        });
     }
 
     fn calculate_response_for_request(&self, input : &message::Message) -> message::Message {

@@ -23,6 +23,6 @@ fn start_server_socket_in_thread(server_id : &NodeID) -> JoinHandle<()> {
     let server_id = server_id.clone();
     std::thread::spawn(move || {
         let mut server_socket = server_socket::ServerSocket::new(&server_id);
-        server_socket.process_next_request();
+        server_socket.listen_to_requests();
     })
 }
