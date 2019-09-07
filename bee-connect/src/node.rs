@@ -157,6 +157,8 @@ impl Node {
     }
 }
 
+/// `NodeID` instances describe how to reach a single external node. They specify the protocol and
+/// address of such a node so that a connection can be established based on those information.
 #[derive(Debug)]
 pub struct NodeID {
     pub protocol : String,

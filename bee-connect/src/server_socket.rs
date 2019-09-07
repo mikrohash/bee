@@ -22,27 +22,24 @@ impl ServerSocket {
     }
 
     pub fn listen_to_requests(&mut self) {
-
-        task::block_on(async {
-            let mut incoming = self.listener.incoming();
-            let polled = incoming.next().await;
-
-            match polled {
-                Some(Ok(stream)) => { self.process_stream(stream);  },
-                Some(Err(e)) => { panic!("[S] Error: {}", e); },
-                None => { /* no open request */ }
-            }
-        });
+        // TODO consider threading and/or looping this function
+        let mut incoming = self.listener.incoming();
+        let polled = task::block_on(async {incoming.next().await });
+        match polled {
+            Some(Ok(stream)) => { self.process_stream(stream);  },
+            Some(Err(e)) => { panic!("[S] Error: {}", e); },
+            None => { /* no open request */ }
+        }
     }
 
     fn process_stream(&self, mut stream : TcpStream) {
         let request = socket_utils::read_message(&mut stream).unwrap();
         let response = self.calculate_response_for_request(&request);
-
-        task::block_on(async {
+        // TODO ask for review whether thread::spawn(move || task::block_on(...)) makes sense
+        std::thread::spawn(move || task::block_on({ async {
             stream.write_all(&response).await.unwrap();
             stream.flush().await.unwrap();
-        });
+        }}));
     }
 
     fn calculate_response_for_request(&self, input : &message::Message) -> message::Message {

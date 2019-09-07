@@ -6,6 +6,8 @@ use crate::node;
 use async_std::task;
 use core::borrow::BorrowMut;
 use async_std::io::Write;
+use std::thread::sleep;
+use std::time::Duration;
 
 pub struct ClientSocket {
     stream : TcpStream,
@@ -31,12 +33,13 @@ impl ClientSocket {
     }
 
     pub fn send_message(&mut self, message : &message::Message) -> Result<message::Message, String> {
+        let stream = self.stream.borrow_mut();
         task::block_on(async {
-            let stream = self.stream.borrow_mut();
             stream.write_all(message).await.unwrap();
             stream.flush().await.unwrap();
-            socket_utils::read_message(&mut self.stream)
-        })
+        });
+
+        socket_utils::read_message(&mut self.stream)
     }
 
     pub fn get_server_id(&self) -> &node::NodeID {
