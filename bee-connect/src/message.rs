@@ -1,38 +1,92 @@
-pub const MESSAGE_LENGTH : usize = 10;
 
-/// A type for the payload messages that can be exchanged between bee nodes.
-pub type Message = [u8; MESSAGE_LENGTH];
 
-pub const DISCONNECT_REQUEST: Message = *b"/DISCONNEC";
-pub const DISCONNECT_RESPONSE: Message = *b"+DISCONNEC";
-pub const CONFUSED_RESPONSE: Message = *b"-CONFUSED ";
+pub const MESSAGE_LENGTH : usize = 0;
 
 #[derive(std::fmt::Debug)]
 pub enum MessageType {
     Payload,
-    ConnectConfirmation,
-    ConnectRequest,
-    ConnectRejection,
+    DisconnectConfirmation,
+    DisconnectRequest,
+    UnknownMessageException,
 }
 
 impl MessageType {
     pub fn encode(&self) -> u8 {
         match self {
             MessageType::Payload => 0,
-            MessageType::ConnectConfirmation => 1,
-            MessageType::ConnectRequest => 2,
-            MessageType::ConnectRejection => 3,
+            MessageType::DisconnectRequest => 1,
+            MessageType::DisconnectConfirmation => 2,
+            MessageType::UnknownMessageException => 3,
         }
     }
 
     pub fn decode(id : u8) -> Result<Self, String> {
         match id {
             0 => Ok(MessageType::Payload),
-            1 => Ok(MessageType::ConnectConfirmation),
-            2 => Ok(MessageType::ConnectRequest),
-            3 => Ok(MessageType::ConnectRejection),
+            1 => Ok(MessageType::DisconnectRequest),
+            2 => Ok(MessageType::DisconnectConfirmation),
+            3 => Ok(MessageType::UnknownMessageException),
             _ => Err("Unknown message type ID.".to_string())
         }
+    }
+}
+
+impl Clone for MessageType {
+    fn clone(&self) -> Self {
+        MessageType::decode(self.encode()).unwrap()
+    }
+}
+
+impl PartialEq for MessageType {
+    fn eq(&self, other : &Self) -> bool {
+        self.encode() == other.encode()
+    }
+}
+
+/// A representation for all messages that can be exchanged between bee nodes.
+#[derive(std::fmt::Debug)]
+pub struct Message {
+    message_type : MessageType,
+    message_content : Vec<u8>
+}
+
+impl Message {
+    pub fn new(message_type : MessageType, message_content : Vec<u8>) -> Self {
+        // TODO validate content_data based on message_type
+        Message { message_type, message_content }
+    }
+
+    pub fn get_metadata(&self) -> MessageMetaData {
+        MessageMetaData::new(
+            self.message_type.clone(),
+             self.message_content.len()
+        ).unwrap()
+    }
+
+    pub fn get_content_bytes(&self) -> &[u8] {
+        self.message_content.as_slice()
+    }
+
+    pub fn get_type(&self) -> &MessageType {
+        &self.message_type
+    }
+
+    pub fn disconnect_request() -> Message {
+        Message::new(MessageType::DisconnectRequest, vec![])
+    }
+
+    pub fn disconnect_confirmation() -> Message {
+        Message::new(MessageType::DisconnectConfirmation, vec![])
+    }
+
+    pub fn unknown_message_exception() -> Message {
+        Message::new(MessageType::UnknownMessageException, vec![])
+    }
+}
+
+impl<'s> PartialEq for Message {
+    fn eq(&self, other : &Self) -> bool {
+        self.message_type == other.message_type && self.get_content_bytes() == other.get_content_bytes()
     }
 }
 

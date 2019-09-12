@@ -2,13 +2,20 @@ use async_std::net::TcpStream;
 use async_std::prelude::*;
 use async_std::task;
 use crate::message;
-use crate::message::MessageMetaData;
+use crate::message::{MessageMetaData, Message, MessageType};
 
 pub fn read_message(stream : & mut TcpStream) -> Result<message::Message, String> {
-    let mut data : message::Message = [0; message::MESSAGE_LENGTH];
-    let read_exact_result = task::block_on( stream.read_exact(&mut data));
-    match read_exact_result {
-        Ok(()) =>  Ok(data),
+    match read_into_buffer(stream) {
+
+        Ok(buffer) =>  Ok(Message::new(MessageType::Payload, buffer)),
+        Err(e) => Err(e.to_string())
+    }
+}
+
+fn read_into_buffer(stream : & mut TcpStream) -> Result<Vec<u8>, String> {
+    let mut buffer = vec![0; message::MESSAGE_LENGTH];
+    match task::block_on( stream.read_exact( &mut buffer)) {
+        Ok(()) =>  Ok(buffer),
         Err(e) => Err(e.to_string())
     }
 }

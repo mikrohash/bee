@@ -249,7 +249,7 @@ mod test {
             &peer.server_socket.listen_to_requests();
         });
 
-        let msg : message::Message = node.send_message_to_peer(peer_id, &message::DISCONNECT_REQUEST).unwrap();
+        let msg : message::Message = node.send_message_to_peer(peer_id, &message::Message::disconnect_request()).unwrap();
         peer_handle.join().unwrap();
     }
 
@@ -260,7 +260,7 @@ mod test {
         let peer = create_tcp_localhost_node(1338);
         let peer_id = &peer.get_id().clone();
         node.connect_to_peer(peer_id).unwrap();
-        node.send_message_to_peer(peer_id, &message::DISCONNECT_REQUEST).unwrap_err();
+        node.send_message_to_peer(peer_id, &message::Message::disconnect_request()).unwrap_err();
     }
 
     #[test]

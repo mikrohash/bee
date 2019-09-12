@@ -5,6 +5,7 @@ use crate::node;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::task;
 use async_std::prelude::*;
+use crate::message::Message;
 
 pub struct ServerSocket {
     listener : TcpListener,
@@ -33,19 +34,19 @@ impl ServerSocket {
     }
 
     fn process_stream(&self, mut stream : TcpStream) {
-        let request = socket_utils::read_message(&mut stream).unwrap();
-        let response = self.calculate_response_for_request(&request);
+        let request : Message = socket_utils::read_message(&mut stream).unwrap();
+        let response : Message = self.calculate_response_for_request(&request);
         // TODO ask for review whether thread::spawn(move || task::block_on(...)) makes sense
         std::thread::spawn(move || task::block_on({ async {
-            stream.write_all(&response).await.unwrap();
+            stream.write_all(response.get_content_bytes()).await.unwrap();
             stream.flush().await.unwrap();
         }}));
     }
 
     fn calculate_response_for_request(&self, input : &message::Message) -> message::Message {
-        match input {
-            &message::DISCONNECT_REQUEST => message::DISCONNECT_RESPONSE,
-            _ => message::CONFUSED_RESPONSE
+        match input.get_type() {
+            message::MessageType::DisconnectRequest => message::Message::disconnect_confirmation(),
+            _ => message::Message::unknown_message_exception()
         }
     }
 
@@ -61,7 +62,7 @@ mod test {
 
     #[test]
     fn test_calculate_response_for_request() {
-        assert_server_response(&message::DISCONNECT_REQUEST, &message::DISCONNECT_RESPONSE);
+        assert_server_response(&message::Message::disconnect_request(), &message::Message::disconnect_confirmation());
     }
 
     fn assert_server_response(request : &message::Message, expected_response : &message::Message) {
